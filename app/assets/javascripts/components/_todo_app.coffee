@@ -1,11 +1,14 @@
 {header, h1, input, label, ul, li, div, button, section, span, strong, footer, a} = React.DOM
 
 ENTER_KEY = 13
+ESCAPE_KEY = 27
 
 TodoApp = React.createClass
   getInitialState: ->
     todos: []
     newTodoField: ''
+    editing: null
+    editText: ''
 
   handleNewTodoChange: (event) ->
     @setState newTodoField: event.target.value
@@ -34,6 +37,39 @@ TodoApp = React.createClass
       completed: event.target.checked
     @setState todos: todos
 
+  handleEdit: (item) ->
+    @setState
+      editing: item
+      editText: item.title
+
+  handleEditChange: (event) ->
+    @setState editText: event.target.value
+
+  handleEditKeyDown: (event) ->
+    if event.which is ESCAPE_KEY
+      @setState
+        editText: ''
+        editing: null
+    else if event.which is ENTER_KEY
+      @handleEditSubmit(event)
+
+  handleEditSubmit: (event) ->
+    val = @state.editText.trim()
+    if val
+      todos = @state.todos.map (todo) =>
+        if @state.editing is todo
+          title: val
+          completed: todo.completed
+        else
+          todo
+    else
+      todos = @state.todos.filter (todo) =>
+        todo isnt @state.editing
+    @setState
+      todos: todos
+      editText: ''
+      editing: null
+
   render: ->
     div null,
       @renderHeader()
@@ -46,7 +82,7 @@ TodoApp = React.createClass
       input
         id: 'new-todo'
         placeholder: 'What needs to be done?'
-        autofocus: true
+        autoFocus: true
         ref: 'newField'
         onKeyDown: @handleNewTodoKeyDown
         onChange: @handleNewTodoChange
@@ -67,16 +103,27 @@ TodoApp = React.createClass
     [@renderTodoItem(item) for item in @state.todos]
 
   renderTodoItem: (item) ->
-    li className: item.completed,
+    classString = ''
+    classString += 'completed' if item.completed
+    classString += ' editing' if item is @state.editing
+    liProps = {}
+    liProps['className'] = classString if classString.length
+    li liProps,
       div className: 'view',
         input
           className: 'toggle'
           type: 'checkbox'
           checked: item.completed is true
           onChange: @handleToggle.bind(@, item)
-        label null, item.title
+        label onDoubleClick: @handleEdit.bind(@, item),
+          item.title
         button className: 'destroy'
-      input className: 'edit', value: item.title
+      input
+        className: 'edit'
+        value: @state.editText
+        onChange: @handleEditChange
+        onKeyUp: @handleEditKeyDown
+        onBlur: @handleEditSubmit
 
   renderFooter: ->
     footer id: 'footer',
