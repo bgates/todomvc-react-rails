@@ -19,6 +19,21 @@ TodoApp = React.createClass
         todos: @state.todos.concat([{ title: val, completed: false }])
         newTodoField: ''
 
+  handleToggle: (item) ->
+    todos = @state.todos.map (todo) ->
+      if item is todo
+        title: todo.title
+        completed: !todo.completed
+      else
+        todo
+    @setState todos: todos
+
+  handleToggleAll: (event) ->
+    todos = @state.todos.map (todo) ->
+      title: todo.title
+      completed: event.target.checked
+    @setState todos: todos
+
   render: ->
     div null,
       @renderHeader()
@@ -39,7 +54,12 @@ TodoApp = React.createClass
 
   renderSection: ->
     section id: 'main',
-      input id: 'toggle-all', type: 'checkbox'
+      input
+        id: 'toggle-all'
+        type: 'checkbox'
+        checked: @state.todos.every (todo) ->
+          todo.completed is true
+        onChange: @handleToggleAll
       label htmlFor: 'toggle-all', 'Mark all as complete'
       ul id: 'todo-list', @renderTodoItems()
 
@@ -53,6 +73,7 @@ TodoApp = React.createClass
           className: 'toggle'
           type: 'checkbox'
           checked: item.completed is true
+          onChange: @handleToggle.bind(@, item)
         label null, item.title
         button className: 'destroy'
       input className: 'edit', value: item.title
