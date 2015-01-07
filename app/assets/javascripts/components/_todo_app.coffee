@@ -1,4 +1,5 @@
-{header, h1, input, label, ul, li, div, button, section, span, strong, footer, a} = React.DOM
+{header, h1, input, label, ul, li, div
+, button, section, span, strong, footer, a} = React.DOM
 
 ENTER_KEY = 13
 ESCAPE_KEY = 27
@@ -11,6 +12,53 @@ TodoApp = React.createClass
     editText: ''
     filter: 'all'
 
+  addTodo: (title) ->
+    @state.todos.concat [{ title: title, completed: false }]
+
+  toogle: (item) ->
+    @state.todos.map (todo) =>
+      if item is todo
+        @_update(todo, completed: !todo.completed)
+      else
+        todo
+
+  toogleAll: (checked) ->
+    @state.todos.map (todo) =>
+      @_update(todo, completed: checked)
+
+  save: (item, attrs) ->
+    @state.todos.map (todo) =>
+      if item is todo
+        @_update(todo, attrs)
+      else
+        todo
+
+  destroy: (item) ->
+    @state.todos.filter (todo) ->
+      todo != item
+
+  clearCompleted: ->
+    @state.todos.filter (todo) ->
+      !todo.completed
+
+  isAllComplete: ->
+    @state.todos.every (todo) ->
+      todo.completed
+
+  activeTodos: ->
+    @state.todos.filter (todo) ->
+      !todo.completed
+
+  completedTodos: ->
+    @state.todos.filter (todo) ->
+      todo.completed
+
+  _update: (todo, attrs) ->
+    newTodo = {}
+    newTodo[k] = v for k, v of todo
+    newTodo[k] = v for k, v of attrs
+    newTodo
+
   handleNewTodoChange: (event) ->
     @setState newTodoField: event.target.value
 
@@ -19,62 +67,36 @@ TodoApp = React.createClass
     event.preventDefault()
     val = @refs.newField.getDOMNode().value.trim()
     if val
-      @setState
-        todos: @state.todos.concat([{ title: val, completed: false }])
-        newTodoField: ''
+      @setState todos: @addTodo(val), newTodoField: ''
 
   handleToggle: (item) ->
-    todos = @state.todos.map (todo) ->
-      if item is todo
-        title: todo.title
-        completed: !todo.completed
-      else
-        todo
-    @setState todos: todos
+    @setState todos: @toogle(item)
 
   handleToggleAll: (event) ->
-    todos = @state.todos.map (todo) ->
-      title: todo.title
-      completed: event.target.checked
-    @setState todos: todos
+    @setState todos: @toogleAll(event.target.checked)
 
   handleEdit: (item) ->
-    @setState
-      editing: item
-      editText: item.title
+    @setState editing: item, editText: item.title
 
   handleEditChange: (event) ->
     @setState editText: event.target.value
 
   handleEditKeyDown: (event) ->
     if event.which is ESCAPE_KEY
-      @setState
-        editText: ''
-        editing: null
+      @setState editText: '', editing: null
     else if event.which is ENTER_KEY
       @handleEditSubmit(event)
 
   handleEditSubmit: (event) ->
     val = @state.editText.trim()
     if val
-      todos = @state.todos.map (todo) =>
-        if @state.editing is todo
-          title: val
-          completed: todo.completed
-        else
-          todo
+      todos = @save(@state.editing, title: val)
     else
-      todos = @state.todos.filter (todo) =>
-        todo isnt @state.editing
-    @setState
-      todos: todos
-      editText: ''
-      editing: null
+      todos = @destroy(@state.editing)
+    @setState todos: todos, editText: '', editing: null
 
   handleClearCompleted: (event) ->
-    todos = @state.todos.filter (todo) ->
-      !todo.completed
-    @setState todos: todos
+    @setState todos: @clearCompleted()
 
   handleFilterClick: (item, event) ->
     @setState filter: item.filter
@@ -102,35 +124,30 @@ TodoApp = React.createClass
       input
         id: 'toggle-all'
         type: 'checkbox'
-        checked: @state.todos.every (todo) ->
-          todo.completed is true
+        checked: @isAllComplete()
         onChange: @handleToggleAll
       label htmlFor: 'toggle-all', 'Mark all as complete'
       ul id: 'todo-list', @renderTodoItems()
 
   renderTodoItems: ->
-    if @state.filter is 'all'
-      todos = @state.todos
-    else if @state.filter is 'active'
-      todos = @state.todos.filter (todo) ->
-        !todo.completed
-    else
-      todos = @state.todos.filter (todo) ->
-        todo.completed
+    todos = switch @state.filter
+      when 'active' then @activeTodos()
+      when 'completed' then @completedTodos()
+      else @state.todos
     [@renderTodoItem(item) for item in todos]
 
   renderTodoItem: (item) ->
     classString = ''
     classString += 'completed' if item.completed
     classString += ' editing' if item is @state.editing
-    liProps = {}
-    liProps['className'] = classString if classString.length
-    li liProps,
+    props = {}
+    props['className'] = classString if classString.length
+    li props,
       div className: 'view',
         input
           className: 'toggle'
           type: 'checkbox'
-          checked: item.completed is true
+          checked: item.completed
           onChange: @handleToggle.bind(@, item)
         label onDoubleClick: @handleEdit.bind(@, item),
           item.title
@@ -143,12 +160,7 @@ TodoApp = React.createClass
         onBlur: @handleEditSubmit
 
   renderFooter: ->
-    activeCount = @state.todos.reduce((prev, curr) ->
-      if curr.completed
-        prev
-      else
-        prev + 1
-    , 0)
+    activeCount = @activeTodos().length
     completedCount = @state.todos.length - activeCount
     footer id: 'footer',
       span id: 'todo-count',
@@ -168,7 +180,6 @@ TodoApp = React.createClass
       props['className'] = 'selected' if @state.filter is item.filter
       li key: item.filter,
         a props, item.val
-
 
   renderClearCompletedButton: (completedCount) ->
     button
