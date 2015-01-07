@@ -9,6 +9,7 @@ TodoApp = React.createClass
     newTodoField: ''
     editing: null
     editText: ''
+    filter: 'all'
 
   handleNewTodoChange: (event) ->
     @setState newTodoField: event.target.value
@@ -75,6 +76,9 @@ TodoApp = React.createClass
       !todo.completed
     @setState todos: todos
 
+  handleFilterClick: (item, event) ->
+    @setState filter: item.filter
+
   render: ->
     div null,
       @renderHeader()
@@ -105,7 +109,15 @@ TodoApp = React.createClass
       ul id: 'todo-list', @renderTodoItems()
 
   renderTodoItems: ->
-    [@renderTodoItem(item) for item in @state.todos]
+    if @state.filter is 'all'
+      todos = @state.todos
+    else if @state.filter is 'active'
+      todos = @state.todos.filter (todo) ->
+        !todo.completed
+    else
+      todos = @state.todos.filter (todo) ->
+        todo.completed
+    [@renderTodoItem(item) for item in todos]
 
   renderTodoItem: (item) ->
     classString = ''
@@ -142,14 +154,21 @@ TodoApp = React.createClass
       span id: 'todo-count',
         strong null, activeCount
         " item#{if activeCount is 1 then '' else 's'} left"
-      ul id: 'filters',
-        li null,
-          a className: 'selected', href: '#/', 'All'
-        li null,
-          a href: '#/active', 'Active'
-        li null,
-          a href: '#/completed', 'Completed'
+      ul id: 'filters', @renderFilters()
       @renderClearCompletedButton(completedCount) if completedCount
+
+  renderFilters: ->
+    items = [
+      { filter: 'all', href: '#/', val: 'All' }
+      { filter: 'active', href: '#/active', val: 'Active' }
+      { filter: 'completed', href: '#/completed', val: 'Completed' }
+    ]
+    items.map (item) =>
+      props= { href: item.href, onClick: @handleFilterClick.bind(@, item) }
+      props['className'] = 'selected' if @state.filter is item.filter
+      li key: item.filter,
+        a props, item.val
+
 
   renderClearCompletedButton: (completedCount) ->
     button
