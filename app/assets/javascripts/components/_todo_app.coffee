@@ -126,10 +126,16 @@ TodoApp = React.createClass
         onBlur: @handleEditSubmit
 
   renderFooter: ->
+    activeCount = @state.todos.reduce((prev, curr) ->
+      if curr.completed
+        prev
+      else
+        prev + 1
+    , 0)
     footer id: 'footer',
       span id: 'todo-count',
-        strong null, '1'
-        ' item left'
+        strong null, activeCount
+        " item#{if activeCount is 1 then '' else 's'} left"
       ul id: 'filters',
         li null,
           a className: 'selected', href: '#/', 'All'
