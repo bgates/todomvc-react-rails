@@ -70,6 +70,11 @@ TodoApp = React.createClass
       editText: ''
       editing: null
 
+  handleClearCompleted: (event) ->
+    todos = @state.todos.filter (todo) ->
+      !todo.completed
+    @setState todos: todos
+
   render: ->
     div null,
       @renderHeader()
@@ -132,6 +137,7 @@ TodoApp = React.createClass
       else
         prev + 1
     , 0)
+    completedCount = @state.todos.length - activeCount
     footer id: 'footer',
       span id: 'todo-count',
         strong null, activeCount
@@ -143,6 +149,12 @@ TodoApp = React.createClass
           a href: '#/active', 'Active'
         li null,
           a href: '#/completed', 'Completed'
-      button id: 'clear-completed', 'Clear completed (1)'
+      @renderClearCompletedButton(completedCount) if completedCount
+
+  renderClearCompletedButton: (completedCount) ->
+    button
+      id: 'clear-completed'
+      onClick: @handleClearCompleted
+      , "Clear completed (#{completedCount})"
 
 window.TodoApp = TodoApp
