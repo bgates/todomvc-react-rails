@@ -6,40 +6,86 @@ ESCAPE_KEY = 27
 
 TodoApp = React.createClass
   getInitialState: ->
-    todos: []
+    todos: @_sort(JSON.parse(@props.todos))
     newTodoField: ''
     editing: null
     editText: ''
-    filter: 'all'
+    filter: @props.filter
 
   addTodo: (title) ->
-    @state.todos.concat [{ title: title, completed: false }]
+    $.ajax
+      type: 'POST'
+      url: @props.todos_path
+      data: { todo: { title: title, completed: false } }
+      dataType: 'json'
+    .done (data) =>
+      @setState todos: @_sort(@state.todos.concat([data]))
+    .fail (xhr, status, err) ->
+      console.error @props.todos_path, status, err.toString()
 
   toogle: (item) ->
-    @state.todos.map (todo) =>
-      if item is todo
-        @_update(todo, completed: !todo.completed)
-      else
-        todo
+    $.ajax
+      type: 'PUT'
+      url: @props.todos_path + "/#{item.id}"
+      data: { todo: @_update(item, completed: !item.completed) }
+      dataType: 'json'
+    .done (data) =>
+      @setState todos: @_sort(@state.todos.map (todo) ->
+        if item is todo then data else todo
+        )
+    .fail (xhr, status, err) ->
+      console.error status, err.toString()
 
   toogleAll: (checked) ->
-    @state.todos.map (todo) =>
-      @_update(todo, completed: checked)
+    todos = if checked then @activeTodos() else @completedTodos()
+    $.when.apply(null, todos.map (todo) =>
+      $.ajax
+        type: 'PUT'
+        url: @props.todos_path + "/#{todo.id}"
+        data: { todo: @_update(todo, completed: checked) }
+        dataType: 'json'
+    ).done((results...) =>
+      if results.length == 3
+        results = [results] if typeof(results[1]) is 'string'
+      newTodos = {}
+      newTodos[result[0].id] = result[0] for result in results
+      for todo in @state.todos
+        newTodos[todo.id.toString()] = todo if !(todo.id of newTodos)
+      @setState todos: @_sort(v for k, v of newTodos)
+    )
 
   save: (item, attrs) ->
-    @state.todos.map (todo) =>
-      if item is todo
-        @_update(todo, attrs)
-      else
-        todo
+    $.ajax
+      type: 'PUT'
+      url: @props.todos_path + "/#{item.id}"
+      data: { todo: @_update(item, attrs) }
+      dataType: 'json'
+    .done (data) =>
+      @setState todos: @_sort(@state.todos.map (todo) ->
+        if item is todo then data else todo
+        )
+    .fail (xhr, status, err) ->
+      console.error status, err.toString()
 
   destroy: (item) ->
-    @state.todos.filter (todo) ->
-      todo != item
+    $.ajax
+      type: 'DELETE'
+      url: @props.todos_path + "/#{item.id}"
+      dataType: 'json'
+    .done =>
+      @setState todos: @_sort(@state.todos.filter (todo) ->
+        todo != item
+        )
 
   clearCompleted: ->
-    @state.todos.filter (todo) ->
-      !todo.completed
+    $.when.apply(null, @completedTodos().map (todo) =>
+      $.ajax
+        type: 'DELETE'
+        url: @props.todos_path + "/#{todo.id}"
+        dataType: 'json'
+    ).then( =>
+      @setState todos: @activeTodos()
+    )
 
   isAllComplete: ->
     @state.todos.every (todo) ->
@@ -59,6 +105,10 @@ TodoApp = React.createClass
     newTodo[k] = v for k, v of attrs
     newTodo
 
+  _sort: (todos) ->
+    todos.sort (a, b) ->
+      a.id - b.id
+
   handleNewTodoChange: (event) ->
     @setState newTodoField: event.target.value
 
@@ -66,14 +116,14 @@ TodoApp = React.createClass
     return if event.which != ENTER_KEY
     event.preventDefault()
     val = @refs.newField.getDOMNode().value.trim()
-    if val
-      @setState todos: @addTodo(val), newTodoField: ''
+    @addTodo(val) if val
+    @setState newTodoField: ''
 
   handleToggle: (item) ->
-    @setState todos: @toogle(item)
+    @toogle(item)
 
   handleToggleAll: (event) ->
-    @setState todos: @toogleAll(event.target.checked)
+    @toogleAll(event.target.checked)
 
   handleEdit: (item) ->
     @setState editing: item, editText: item.title
@@ -88,15 +138,16 @@ TodoApp = React.createClass
       @handleEditSubmit(event)
 
   handleEditSubmit: (event) ->
+    return unless @state.editing
     val = @state.editText.trim()
     if val
-      todos = @save(@state.editing, title: val)
+      @save(@state.editing, title: val)
     else
-      todos = @destroy(@state.editing)
-    @setState todos: todos, editText: '', editing: null
+      @destroy(@state.editing)
+    @setState editText: '', editing: null
 
   handleClearCompleted: (event) ->
-    @setState todos: @clearCompleted()
+    @clearCompleted()
 
   handleFilterClick: (item, event) ->
     @setState filter: item.filter
@@ -140,7 +191,7 @@ TodoApp = React.createClass
     classString = ''
     classString += 'completed' if item.completed
     classString += ' editing' if item is @state.editing
-    props = {}
+    props = { key: item.id }
     props['className'] = classString if classString.length
     li props,
       div className: 'view',
@@ -156,7 +207,7 @@ TodoApp = React.createClass
         className: 'edit'
         value: @state.editText
         onChange: @handleEditChange
-        onKeyUp: @handleEditKeyDown
+        onKeyDown: @handleEditKeyDown
         onBlur: @handleEditSubmit
 
   renderFooter: ->
@@ -171,9 +222,9 @@ TodoApp = React.createClass
 
   renderFilters: ->
     items = [
-      { filter: 'all', href: '#/', val: 'All' }
-      { filter: 'active', href: '#/active', val: 'Active' }
-      { filter: 'completed', href: '#/completed', val: 'Completed' }
+      { filter: 'all', href: '?filter=all', val: 'All' }
+      { filter: 'active', href: '?filter=active', val: 'Active' }
+      { filter: 'completed', href: '?filter=completed', val: 'Completed' }
     ]
     items.map (item) =>
       props= { href: item.href, onClick: @handleFilterClick.bind(@, item) }
