@@ -1,17 +1,17 @@
 {header, h1, input, label, ul, li, div
 , button, section, span, strong, footer, a} = React.DOM
-{classSet, LinkedStateMixin} = React.addons
+{classSet, LinkedStateMixin, update} = React.addons
 
 ENTER_KEY = 13
 ESCAPE_KEY = 27
 
 TodoApp = React.createClass
   displayName: 'TodoApp'
-  mixins: [classSet, LinkedStateMixin]
+  mixins: [classSet, LinkedStateMixin, update]
 
   propTypes:
     filter: React.PropTypes.oneOf(['all', 'active', 'completed']).isRequired
-    todos: React.PropTypes.array.isRequired
+    todos: React.PropTypes.string.isRequired
     todos_path: React.PropTypes.string.isRequired
 
   getInitialState: ->
@@ -28,16 +28,17 @@ TodoApp = React.createClass
       data: { todo: { title: title, completed: false } }
       dataType: 'json'
     .done (data) =>
-      @setState todos: @_sort(@state.todos.concat([data]))
+      @setState todos: @_sort(update(@state.todos, $push: [data]))
     .fail (xhr, status, err) ->
       console.error @props.todos_path, status, err.toString()
 
   toogle: (item) ->
     @_update item, completed: !item.completed
     .done (data) =>
-      @setState todos: @_sort(@state.todos.map (todo) ->
-        if item is todo then data else todo
-        )
+      @setState todos: @_replaceTodos([
+        index: @state.todos.indexOf(item)
+        data: data
+      ])
     .fail (xhr, status, err) ->
       console.error status, err.toString()
 
@@ -49,37 +50,37 @@ TodoApp = React.createClass
     .done (results...) =>
       if results.length == 3
         results = [results] if typeof(results[1]) is 'string'
-      newTodos = {}
-      newTodos[result[0].id] = result[0] for result in results
-      for todo in @state.todos
-        newTodos[todo.id.toString()] = todo if !(todo.id of newTodos)
-      @setState todos: @_sort(v for k, v of newTodos)
+      @setState todos: @_replaceTodos(results.map (result) =>
+        for todo, i in @state.todos
+          return { index: i, data: result[0] } if result[0].id is todo.id
+      )
 
   save: (item, attrs) ->
     @_update item, attrs
     .done (data) =>
-      @setState todos: @_sort(@state.todos.map (todo) ->
-        if item is todo then data else todo
-        )
+      @setState todos: @_replaceTodos([
+        index: @state.todos.indexOf(item)
+        data: data
+      ])
     .fail (xhr, status, err) ->
       console.error status, err.toString()
 
   destroy: (item) ->
     $.ajax
       type: 'DELETE'
-      url: @props.todos_path + "/#{item.id}"
+      url: @_todo_path(item)
       dataType: 'json'
     .done =>
       @setState todos: @_sort(@state.todos.filter (todo) ->
         todo != item
-        )
+      )
 
   clearCompleted: ->
     $.when
     .apply null, @completedTodos().map (todo) =>
       $.ajax
         type: 'DELETE'
-        url: @props.todos_path + "/#{todo.id}"
+        url: @_todo_path(todo)
         dataType: 'json'
     .then =>
       @setState todos: @activeTodos()
@@ -97,18 +98,23 @@ TodoApp = React.createClass
       todo.completed
 
   _update: (todo, attrs) ->
-    newTodo = {}
-    newTodo[k] = v for k, v of todo
-    newTodo[k] = v for k, v of attrs
     $.ajax
       type: 'PUT'
-      url: @props.todos_path + "/#{todo.id}"
-      data: { todo: newTodo }
+      url: @_todo_path(todo)
+      data: { todo: update(todo, $merge: attrs) }
       dataType: 'json'
 
   _sort: (todos) ->
     todos.sort (a, b) ->
       a.id - b.id
+
+  _replaceTodos: (mappings) ->
+    @_sort update(@state.todos, $splice: mappings.map (mapping) ->
+      [mapping.index, 1, mapping.data]
+    )
+
+  _todo_path: (todo) ->
+    @props.todos_path + "/#{todo.id}"
 
   handleNewTodoKeyDown: (event) ->
     return if event.which != ENTER_KEY
@@ -126,14 +132,14 @@ TodoApp = React.createClass
   handleEdit: (item) ->
     @setState editing: item, editText: item.title
 
-  handleEditChange: (event) ->
-    @setState editText: event.target.value
-
   handleEditKeyDown: (event) ->
     if event.which is ESCAPE_KEY
       @setState editText: '', editing: null
     else if event.which is ENTER_KEY
       @handleEditSubmit event
+
+  handleDestroyButtonClick: (item) ->
+    @destroy item
 
   handleEditSubmit: (event) ->
     return unless @state.editing
@@ -147,8 +153,8 @@ TodoApp = React.createClass
   handleClearCompleted: (event) ->
     @clearCompleted()
 
-  handleFilterClick: (item, event) ->
-    @setState filter: item.filter
+  handleFilterClick: (filter, event) ->
+    @setState filter: filter
 
   render: ->
     div null,
@@ -197,11 +203,12 @@ TodoApp = React.createClass
           onChange: @handleToggle.bind(@, item)
         label onDoubleClick: @handleEdit.bind(@, item),
           item.title
-        button className: 'destroy'
+        button
+          className: 'destroy'
+          onClick: @handleDestroyButtonClick.bind(@, item)
       input
         className: 'edit'
-        value: @state.editText
-        onChange: @handleEditChange
+        valueLink: @linkState('editText')
         onKeyDown: @handleEditKeyDown
         onBlur: @handleEditSubmit
 
@@ -222,7 +229,9 @@ TodoApp = React.createClass
       { filter: 'completed', href: '?filter=completed', val: 'Completed' }
     ]
     items.map (item) =>
-      props= { href: item.href, onClick: @handleFilterClick.bind(@, item) }
+      props =
+        href: item.href
+        onClick: @handleFilterClick.bind(@, item.filter)
       props['className'] = 'selected' if @state.filter is item.filter
       li key: item.filter,
         a props, item.val
