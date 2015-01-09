@@ -1,10 +1,19 @@
 {header, h1, input, label, ul, li, div
 , button, section, span, strong, footer, a} = React.DOM
+{classSet} = React.addons
 
 ENTER_KEY = 13
 ESCAPE_KEY = 27
 
 TodoApp = React.createClass
+  displayName: 'TodoApp'
+  mixins: [classSet]
+
+  propTypes:
+    filter: React.PropTypes.oneOf(['all', 'active', 'completed']).isRequired
+    todos: React.PropTypes.array.isRequired
+    todos_path: React.PropTypes.string.isRequired
+
   getInitialState: ->
     todos: @_sort(JSON.parse(@props.todos))
     newTodoField: ''
@@ -180,12 +189,10 @@ TodoApp = React.createClass
     (@renderTodoItem(item) for item in todos)
 
   renderTodoItem: (item) ->
-    classString = ''
-    classString += 'completed' if item.completed
-    classString += ' editing' if item is @state.editing
-    props = { key: item.id }
-    props['className'] = classString if classString.length
-    li props,
+    classes = classSet
+      completed: item.completed
+      editing: item is @state.editing
+    li { key: item.id, className: classes },
       div className: 'view',
         input
           className: 'toggle'
