@@ -24,11 +24,7 @@ TodoApp = React.createClass
       console.error @props.todos_path, status, err.toString()
 
   toogle: (item) ->
-    $.ajax
-      type: 'PUT'
-      url: @props.todos_path + "/#{item.id}"
-      data: { todo: @_update(item, completed: !item.completed) }
-      dataType: 'json'
+    @_update item, completed: !item.completed
     .done (data) =>
       @setState todos: @_sort(@state.todos.map (todo) ->
         if item is todo then data else todo
@@ -38,13 +34,10 @@ TodoApp = React.createClass
 
   toogleAll: (checked) ->
     todos = if checked then @activeTodos() else @completedTodos()
-    $.when.apply(null, todos.map (todo) =>
-      $.ajax
-        type: 'PUT'
-        url: @props.todos_path + "/#{todo.id}"
-        data: { todo: @_update(todo, completed: checked) }
-        dataType: 'json'
-    ).done((results...) =>
+    $.when
+    .apply null, todos.map (todo) =>
+      @_update todo, completed: checked
+    .done (results...) =>
       if results.length == 3
         results = [results] if typeof(results[1]) is 'string'
       newTodos = {}
@@ -52,14 +45,9 @@ TodoApp = React.createClass
       for todo in @state.todos
         newTodos[todo.id.toString()] = todo if !(todo.id of newTodos)
       @setState todos: @_sort(v for k, v of newTodos)
-    )
 
   save: (item, attrs) ->
-    $.ajax
-      type: 'PUT'
-      url: @props.todos_path + "/#{item.id}"
-      data: { todo: @_update(item, attrs) }
-      dataType: 'json'
+    @_update item, attrs
     .done (data) =>
       @setState todos: @_sort(@state.todos.map (todo) ->
         if item is todo then data else todo
@@ -78,14 +66,14 @@ TodoApp = React.createClass
         )
 
   clearCompleted: ->
-    $.when.apply(null, @completedTodos().map (todo) =>
+    $.when
+    .apply null, @completedTodos().map (todo) =>
       $.ajax
         type: 'DELETE'
         url: @props.todos_path + "/#{todo.id}"
         dataType: 'json'
-    ).then( =>
+    .then =>
       @setState todos: @activeTodos()
-    )
 
   isAllComplete: ->
     @state.todos.every (todo) ->
@@ -103,7 +91,11 @@ TodoApp = React.createClass
     newTodo = {}
     newTodo[k] = v for k, v of todo
     newTodo[k] = v for k, v of attrs
-    newTodo
+    $.ajax
+      type: 'PUT'
+      url: @props.todos_path + "/#{todo.id}"
+      data: { todo: newTodo }
+      dataType: 'json'
 
   _sort: (todos) ->
     todos.sort (a, b) ->
@@ -120,10 +112,10 @@ TodoApp = React.createClass
     @setState newTodoField: ''
 
   handleToggle: (item) ->
-    @toogle(item)
+    @toogle item
 
   handleToggleAll: (event) ->
-    @toogleAll(event.target.checked)
+    @toogleAll event.target.checked
 
   handleEdit: (item) ->
     @setState editing: item, editText: item.title
@@ -135,15 +127,15 @@ TodoApp = React.createClass
     if event.which is ESCAPE_KEY
       @setState editText: '', editing: null
     else if event.which is ENTER_KEY
-      @handleEditSubmit(event)
+      @handleEditSubmit event
 
   handleEditSubmit: (event) ->
     return unless @state.editing
     val = @state.editText.trim()
     if val
-      @save(@state.editing, title: val)
+      @save @state.editing, title: val
     else
-      @destroy(@state.editing)
+      @destroy @state.editing
     @setState editText: '', editing: null
 
   handleClearCompleted: (event) ->
@@ -185,7 +177,7 @@ TodoApp = React.createClass
       when 'active' then @activeTodos()
       when 'completed' then @completedTodos()
       else @state.todos
-    [@renderTodoItem(item) for item in todos]
+    (@renderTodoItem(item) for item in todos)
 
   renderTodoItem: (item) ->
     classString = ''
