@@ -1,13 +1,13 @@
 {header, h1, input, label, ul, li, div
 , button, section, span, strong, footer, a} = React.DOM
-{classSet} = React.addons
+{classSet, LinkedStateMixin} = React.addons
 
 ENTER_KEY = 13
 ESCAPE_KEY = 27
 
 TodoApp = React.createClass
   displayName: 'TodoApp'
-  mixins: [classSet]
+  mixins: [classSet, LinkedStateMixin]
 
   propTypes:
     filter: React.PropTypes.oneOf(['all', 'active', 'completed']).isRequired
@@ -16,7 +16,7 @@ TodoApp = React.createClass
 
   getInitialState: ->
     todos: @_sort(JSON.parse(@props.todos))
-    newTodoField: ''
+    newTodoTitle: ''
     editing: null
     editText: ''
     filter: @props.filter
@@ -110,15 +110,12 @@ TodoApp = React.createClass
     todos.sort (a, b) ->
       a.id - b.id
 
-  handleNewTodoChange: (event) ->
-    @setState newTodoField: event.target.value
-
   handleNewTodoKeyDown: (event) ->
     return if event.which != ENTER_KEY
     event.preventDefault()
     val = @refs.newField.getDOMNode().value.trim()
     @addTodo(val) if val
-    @setState newTodoField: ''
+    @setState newTodoTitle: ''
 
   handleToggle: (item) ->
     @toogle item
@@ -168,8 +165,7 @@ TodoApp = React.createClass
         autoFocus: true
         ref: 'newField'
         onKeyDown: @handleNewTodoKeyDown
-        onChange: @handleNewTodoChange
-        value: @state.newTodoField
+        valueLink: @linkState('newTodoTitle')
 
   renderSection: ->
     section id: 'main',
