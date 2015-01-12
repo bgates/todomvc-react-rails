@@ -118,8 +118,7 @@ TodoApp = React.createClass
 
   handleNewTodoKeyDown: (event) ->
     return if event.which != ENTER_KEY
-    event.preventDefault()
-    val = @refs.newField.getDOMNode().value.trim()
+    val = @state.newTodoTitle.trim()
     @addTodo(val) if val
     @setState newTodoTitle: ''
 
@@ -169,7 +168,6 @@ TodoApp = React.createClass
         id: 'new-todo'
         placeholder: 'What needs to be done?'
         autoFocus: true
-        ref: 'newField'
         onKeyDown: @handleNewTodoKeyDown
         valueLink: @linkState('newTodoTitle')
 
