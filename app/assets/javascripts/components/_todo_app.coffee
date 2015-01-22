@@ -32,7 +32,7 @@ TodoApp = React.createClass
     .fail (xhr, status, err) ->
       console.error @props.todos_path, status, err.toString()
 
-  toogle: (item) ->
+  toggle: (item) ->
     @_update item, completed: !item.completed
     .done (data) =>
       @setState todos: @_replaceTodos([
@@ -42,7 +42,7 @@ TodoApp = React.createClass
     .fail (xhr, status, err) ->
       console.error status, err.toString()
 
-  toogleAll: (checked) ->
+  toggleAll: (checked) ->
     todos = if checked then @activeTodos() else @completedTodos()
     $.when
     .apply null, todos.map (todo) =>
@@ -123,10 +123,10 @@ TodoApp = React.createClass
     @setState newTodoTitle: ''
 
   handleToggle: (item) ->
-    @toogle item
+    @toggle item
 
   handleToggleAll: (event) ->
-    @toogleAll event.target.checked
+    @toggleAll event.target.checked
 
   handleEdit: (item) ->
     @setState editing: item, editText: item.title
