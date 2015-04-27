@@ -1,7 +1,6 @@
 {
   "name": "bower-rails generated vendor assets",
   "dependencies": {
-    "todomvc-common": "~1.0.0",
-    "todomvc-app-css": "~1.0.0"
+    "todomvc-common": "0.3.1"
   }
 }

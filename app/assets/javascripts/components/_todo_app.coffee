@@ -238,6 +238,6 @@ TodoApp = React.createClass
     button
       id: 'clear-completed'
       onClick: @handleClearCompleted
-      , "Clear completed (#{completedCount})"
+      , "Clear completed"
 
 window.TodoApp = TodoApp
