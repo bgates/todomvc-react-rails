@@ -7,7 +7,7 @@ ESCAPE_KEY = 27
 
 TodoApp = React.createClass
   displayName: 'TodoApp'
-  mixins: [classSet, LinkedStateMixin, update]
+  mixins: [LinkedStateMixin]
 
   propTypes:
     filter: React.PropTypes.oneOf(['all', 'active', 'completed']).isRequired

@@ -11,6 +11,7 @@
  * file per style scope.
  *
  *= require todomvc-common/base
+ *= require todomvc-app-css/index
  *= require_tree .
  *= require_self
  */
